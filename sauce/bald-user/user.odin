@@ -50,14 +50,14 @@ Quad_Flags :: enum u8 {
 	flag3 = (1<<2),
 }
 
-ZLayer :: enum u8 {
+ZLayer :: enum i8 {
 	// Can add as many layers as you want in here.
 	// Quads get sorted and drawn lowest to highest.
 	// When things are on the same layer, they follow normal call order.
 	nil,
-	background,
-	shadow,
-	playspace,
+	background=-90,
+	shadow=-2,
+	playspace=0,
 	vfx,
 	ui,
 	tooltip,
@@ -65,22 +65,24 @@ ZLayer :: enum u8 {
 	top,
 }
 
-Sprite_Name :: enum {
-	nil,
-	bald_logo,
-	fmod_logo,
-	player_still,
-	shadow_medium,
-	bg_repeat_tex0,
-	player_death,
-	player_run,
-	player_idle,
-	// to add new sprites, just put the .png in the res/images folder
-	// and add the name to the enum here
-	//
-	// we could auto-gen this based on all the .png's in the images folder
-	// but I don't really see the point right now. It's not hard to type lol.
-}
+//	is now auto generated
+
+// Sprite_Name :: enum {
+// 	nil,
+// 	bald_logo,
+// 	fmod_logo,
+// 	player_still,
+// 	shadow_medium,
+// 	bg_repeat_tex0,
+// 	player_death,
+// 	player_run,
+// 	player_idle,
+// 	// to add new sprites, just put the .png in the res/images folder
+// 	// and add the name to the enum here
+// 	//
+// 	// we could auto-gen this based on all the .png's in the images folder
+// 	// but I don't really see the point right now. It's not hard to type lol.
+// }
 
 sprite_data: [Sprite_Name]Sprite_Data = #partial {
 	.player_idle = {frame_count=2},

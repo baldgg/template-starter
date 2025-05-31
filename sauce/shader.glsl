@@ -52,6 +52,9 @@ void main() {
 	// add :pixel stuff here ^
 	
 	col_out *= color;
+	if (col_out.a == 0) {
+		discard;
+	}
 	
 	col_out.rgb = mix(col_out.rgb, color_override.rgb, color_override.a);
 	

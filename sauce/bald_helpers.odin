@@ -91,11 +91,20 @@ get_screen_space :: proc() -> draw.Coord_Space {
 }
 
 get_world_space_proj :: proc() -> Matrix4 {
-	return linalg.matrix_ortho3d_f32(f32(window_w) * -0.5, f32(window_w) * 0.5, f32(window_h) * -0.5, f32(window_h) * 0.5, -1, 1)
+	return linalg.matrix_ortho3d_f32(f32(window_w) * -0.5, f32(window_w) * 0.5, f32(window_h) * -0.5, f32(window_h) * 0.5, -200, 200)
+}
+get_clip_space_proj ::proc() -> Matrix4{
+	return linalg.matrix_ortho3d_f32(-1, 1, -1, 1, -200, 200)
 }
 get_world_space_camera :: proc() -> Matrix4 {
 	cam := Matrix4(1)
-	cam *= utils.xform_translate(ctx.gs.cam_pos)
+	cam *= utils.xform_translate(Vec3{ctx.gs.cam_pos.x,ctx.gs.cam_pos.y,100})
+	cam *= utils.xform_scale(get_camera_zoom())
+	return cam
+}
+get_clip_space_camera :: proc() -> Matrix4 {
+	cam := Matrix4(1)
+	cam *= utils.xform_translate(Vec3{0,0,100})
 	cam *= utils.xform_scale(get_camera_zoom())
 	return cam
 }
@@ -112,7 +121,7 @@ get_screen_space_proj :: proc() -> Matrix4 {
 	// this centers things
 	offset := GAME_RES_WIDTH*0.5 - w*0.5
 
-	return linalg.matrix_ortho3d_f32(0+offset, w+offset, 0, h, -1, 1)
+	return linalg.matrix_ortho3d_f32(0+offset, w+offset, 0, h, -100, 100)
 }
 
 //

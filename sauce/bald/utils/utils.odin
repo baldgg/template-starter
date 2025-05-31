@@ -193,9 +193,16 @@ snake_case_to_pretty_name :: proc(snake: string) -> string {
 	}
 	return transmute(string)name;
 }
+xform_translate::proc{
+	xform_translate_xy,
+	xform_translate_xyz,
+}
 
-xform_translate :: proc(pos: Vec2) -> Matrix4 {
+xform_translate_xy :: proc(pos: Vec2) -> Matrix4 {
 	return linalg.matrix4_translate(Vec3{pos.x, pos.y, 0})
+}
+xform_translate_xyz :: proc(pos: Vec3) -> Matrix4 {
+	return linalg.matrix4_translate(Vec3{pos.x, pos.y, pos.z})
 }
 xform_rotate :: proc(angle: f32) -> Matrix4 {
 	return linalg.matrix4_rotate(math.to_radians(angle), Vec3{0,0,1})

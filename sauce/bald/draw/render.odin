@@ -46,7 +46,7 @@ clear_col: Vec4
 
 Quad :: [4]Vertex;
 Vertex :: struct {
-	pos: Vec2,
+	pos: Vec3,
 	col: Vec4,
 	uv: Vec2,
 	local_uv: Vec2,
@@ -105,7 +105,7 @@ render_init :: proc() {
 		index_type = .UINT16,
 		layout = {
 			attrs = {
-				user.ATTR_quad_position = { format = .FLOAT2 },
+				user.ATTR_quad_position = { format = .FLOAT3 },
 				user.ATTR_quad_color0 = { format = .FLOAT4 },
 				user.ATTR_quad_uv0 = { format = .FLOAT2 },
 				user.ATTR_quad_local_uv0 = { format = .FLOAT2 },
@@ -114,6 +114,10 @@ render_init :: proc() {
 				user.ATTR_quad_color_override0 = { format = .FLOAT4 },
 				user.ATTR_quad_params0 = { format = .FLOAT4 },
 			},
+		},
+		depth ={
+			compare =.LESS_EQUAL,
+			write_enabled=true,
 		}
 	}
 	blend_state : sg.Blend_State = {
@@ -146,16 +150,16 @@ core_render_frame_end :: proc() {
 	// merge all the layers into a big ol' array to draw
 	total_quad_count := 0
 	{
-		for quads_in_layer, layer in draw_frame.quads {
-			total_quad_count += len(quads_in_layer)
-		}
+	
+		total_quad_count += len(draw_frame.quads)
+
 		assert(total_quad_count <= MAX_QUADS)
 		offset := 0
-		for quads_in_layer, layer in draw_frame.quads {
-			size := size_of(Quad) * len(quads_in_layer)
-			mem.copy(mem.ptr_offset(raw_data(actual_quad_data[:]), offset), raw_data(quads_in_layer), size)
-			offset += size
-		}
+	
+		size := size_of(Quad) * len(draw_frame.quads)
+		mem.copy(mem.ptr_offset(raw_data(actual_quad_data[:]), offset), raw_data(draw_frame.quads), size)
+		offset += size
+		
 	}
 	
 	render_state.bind.images[user.IMG_tex0] = atlas.sg_image
@@ -179,18 +183,13 @@ core_render_frame_end :: proc() {
 
 reset_draw_frame :: proc() {
 	draw_frame.reset = {}
-
-	// TODO, do something about this monstrosity
-	draw_frame.quads[.background] = make([dynamic]Quad, 0, 512, allocator=context.temp_allocator)
-	draw_frame.quads[.shadow] = make([dynamic]Quad, 0, 128, allocator=context.temp_allocator)
-	draw_frame.quads[.playspace] = make([dynamic]Quad, 0, 256, allocator=context.temp_allocator)
-	draw_frame.quads[.tooltip] = make([dynamic]Quad, 0, 256, allocator=context.temp_allocator)
+	clear(&draw_frame.quads)
 }
 
 Draw_Frame :: struct {
-
+	quads: [dynamic]Quad,
 	using reset: struct {
-		quads: [user.ZLayer][dynamic]Quad, // this is super scuffed, but I did this to optimise the sort, I'm sure there's a better fix.
+		// quads: [user.ZLayer][dynamic]Quad, // this is super scuffed, but I did this to optimise the sort, I'm sure there's a better fix.
 		coord_space: Coord_Space,
 		active_z_layer: user.ZLayer,
 		active_scissor: shape.Rect,
@@ -211,7 +210,7 @@ Sprite :: struct {
 sprites: [user.Sprite_Name]Sprite
 
 load_sprites_into_atlas :: proc() {
-	img_dir := "res/images/"
+	img_dir := fmt.tprintf("%v/images/",user.res_path)
 	
 	for img_name in user.Sprite_Name {
 		if img_name == .nil do continue
@@ -329,7 +328,7 @@ load_font :: proc() {
 	
 	bitmap, _ := mem.alloc(font_bitmap_w * font_bitmap_h)
 	font_height := 15 // for some reason this only bakes properly at 15 ? it's a 16px font dou...
-	path := "res/fonts/alagard.ttf" // #user
+	path := fmt.tprintf("%v/fonts/alagard.ttf",user.res_path) // #user
 	ttf_data, err := os.read_entire_file(path)
 	assert(ttf_data != nil, "failed to read font")
 	
@@ -392,7 +391,7 @@ draw_quad_projected :: proc(
 	world_to_clip:   Matrix4, 
 
 	// for each corner of the quad
-	positions:       [4]Vec2,
+	positions:       [4]Vec3,
 	colors:          [4]Vec4,
 	uvs:             [4]Vec2,
 
@@ -416,33 +415,14 @@ draw_quad_projected :: proc(
 
 	verts : [4]Vertex
 	defer {
-		quad_array := &draw_frame.quads[z_layer0]
-		quad_array.allocator = context.temp_allocator
-
-		if z_layer_queue == -1 {
-			append(quad_array, verts)
-		} else {
-
-			assert(z_layer_queue < len(quad_array), "no elements pushed after the z_layer_queue")
-
-			// I'm just kinda praying that this works lol, seems good
-			
-			// This is an array insert example
-			resize_dynamic_array(quad_array, len(quad_array)+1)
-			
-			og_range := quad_array[z_layer_queue:len(quad_array)-1]
-			new_range := quad_array[z_layer_queue+1:len(quad_array)]
-			copy(new_range, og_range)
-
-			quad_array[z_layer_queue] = verts
-		}
-
+		quad_array := &draw_frame.quads
+		append(quad_array, verts)
 	}
 	
-	verts[0].pos = (world_to_clip * Vec4{positions[0].x, positions[0].y, 0.0, 1.0}).xy
-	verts[1].pos = (world_to_clip * Vec4{positions[1].x, positions[1].y, 0.0, 1.0}).xy
-	verts[2].pos = (world_to_clip * Vec4{positions[2].x, positions[2].y, 0.0, 1.0}).xy
-	verts[3].pos = (world_to_clip * Vec4{positions[3].x, positions[3].y, 0.0, 1.0}).xy
+	verts[0].pos = (world_to_clip * Vec4{positions[0].x, positions[0].y, positions[0].z, 1.0}).xyz
+	verts[1].pos = (world_to_clip * Vec4{positions[1].x, positions[1].y, positions[1].z, 1.0}).xyz
+	verts[2].pos = (world_to_clip * Vec4{positions[2].x, positions[2].y, positions[2].z, 1.0}).xyz
+	verts[3].pos = (world_to_clip * Vec4{positions[3].x, positions[3].y, positions[3].z, 1.0}).xyz
 	
 	verts[0].col = colors[0]
 	verts[1].col = colors[1]

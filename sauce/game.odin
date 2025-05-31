@@ -17,6 +17,7 @@ import "bald:sound"
 import "bald:utils"
 import "bald:utils/color"
 
+
 import "core:log"
 import "core:fmt"
 import "core:mem"
@@ -169,6 +170,7 @@ app_frame :: proc() {
 
 app_shutdown :: proc() {
 	// called on exit
+	delete(draw.draw_frame.quads)
 }
 
 game_update :: proc() {
@@ -234,18 +236,18 @@ game_draw :: proc() {
 	// background thing
 	{
 		// identity matrices, so we're in clip space
-		draw.push_coord_space({proj=Matrix4(1), camera=Matrix4(1)})
+		draw.push_coord_space({get_clip_space_proj(), get_clip_space_camera()})
 
 		// draw rect that covers the whole screen
-		draw.draw_rect(Rect{ -1, -1, 1, 1}, flags=.background_pixels) // we leave it in the hands of the shader
+		draw.draw_rect(Rect{ -1, -1, 1, 1}, flags=.background_pixels,z_layer = .background) // we leave it in the hands of the shader
 	}
 
 	// world
 	{
 		draw.push_coord_space(get_world_space())
-		
-		draw.draw_sprite({10, 10}, .player_still, col_override=Vec4{1,0,0,0.4})
-		draw.draw_sprite({-10, 10}, .player_still)
+
+		draw.draw_sprite({10, 10}, .player_still, col_override=Vec4{1,0,0,.4}, z=-1)
+		draw.draw_sprite({-10, 10}, .player_still, col_override=Vec4{0,0,1,.4}, z=1,)
 
 		draw.draw_text({0, -50}, "sugon", pivot=.bottom_center, col={0,0,0,0.1})
 
@@ -278,6 +280,7 @@ draw_sprite_entity :: proc(
 
 	pos: Vec2,
 	sprite: Sprite_Name,
+	z:f32=0,
 	pivot:=utils.Pivot.center_center,
 	flip_x:=false,
 	draw_offset:=Vec2{},
@@ -292,7 +295,6 @@ draw_sprite_entity :: proc(
 	crop_left:f32=0.0,
 	crop_bottom:f32=0.0,
 	crop_right:f32=0.0,
-	z_layer_queue:=-1,
 ) {
 
 	col_override := col_override
@@ -303,7 +305,7 @@ draw_sprite_entity :: proc(
 		col_override.a = max(col_override.a, entity.hit_flash.a)
 	}
 
-	draw.draw_sprite(pos, sprite, pivot, flip_x, draw_offset, xform, anim_index, col, col_override, z_layer, flags, params, crop_top, crop_left, crop_bottom, crop_right)
+	draw.draw_sprite(pos, sprite, z, pivot, flip_x, draw_offset, xform, anim_index, col, col_override, z_layer, flags, params, crop_top, crop_left, crop_bottom, crop_right)
 }
 
 //

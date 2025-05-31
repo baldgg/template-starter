@@ -10,7 +10,7 @@
 // VERTEX SHADER
 //
 @vs vs
-in vec2 position;
+in vec3 position;
 in vec4 color0;
 in vec2 uv0;
 in vec2 local_uv0;
@@ -30,7 +30,7 @@ out vec4 params;
 out vec2 pos;
 
 void main() {
-	gl_Position = vec4(position, 0, 1);
+	gl_Position = vec4(position, 1);
 	color = color0;
 	uv = uv0;
 	local_uv = local_uv0;
