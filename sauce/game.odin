@@ -10,6 +10,7 @@ It will grow pretty phat. This is where the magic happens.
 GAMEPLAY O'CLOCK !
 
 */
+import user "user:bald-user"
 
 import "bald:input"
 import "bald:draw"
@@ -17,12 +18,14 @@ import "bald:sound"
 import "bald:utils"
 import "bald:utils/color"
 
+
 import "core:log"
 import "core:fmt"
 import "core:mem"
 import "core:math"
 import "core:math/linalg"
 
+import sg "bald:sokol/gfx"
 import sapp "bald:sokol/app"
 import spall "core:prof/spall"
 
@@ -32,6 +35,7 @@ GAME_RES_WIDTH :: 480
 GAME_RES_HEIGHT :: 270
 window_w := 1280
 window_h := 720
+cam:=&ctx.gs.cam
 
 when NOT_RELEASE {
 	// can edit stuff in here to be whatever for testing
@@ -48,7 +52,7 @@ Game_State :: struct {
 	ticks: u64,
 	game_time_elapsed: f64,
 	cam_pos: Vec2, // this is used by the renderer
-
+	cam:draw.Camera,
 	// entity system
 	entity_top_count: int,
 	latest_entity_id: int,
@@ -85,6 +89,10 @@ Input_Action :: enum u8 {
 	use,
 	interact,
 }
+// passes
+
+bace_pass: draw.Draw_Pass_Info
+offs_pass: draw.Draw_Pass_Info
 
 //
 // entity system
@@ -124,6 +132,7 @@ Entity_Kind :: enum {
 	thing1,
 }
 
+
 entity_setup :: proc(e: ^Entity, kind: Entity_Kind) {
 	// entity defaults
 	e.draw_proc = draw_entity_default
@@ -139,55 +148,71 @@ entity_setup :: proc(e: ^Entity, kind: Entity_Kind) {
 //
 // main game procs
 
+app_shutdown :: proc() {
+	// called on exit
+	delete(bace_pass.quads)
+}
+
 app_init :: proc() {
+	init_cam(&ctx.gs.cam)
+
+	draw.init_pass_defalts(pass=&bace_pass) //inits defalt draw pass
+	draw.init_pass_render_texture_wh(pass=&offs_pass,w=500,h=500) //inits a drapas using a render texture
+
+
+	draw.bind_imag_to_pass(pass=&bace_pass,imag=draw.get_render_texture_from_pass(pass=&offs_pass),slot=user.IMG_test) //binds the render texture to the slot
+	draw.bind_imag_to_pass(pass=&offs_pass,imag=draw.atlas.sg_image,slot=user.IMG_test) //binds a placeholder texture to the slot so there is know worning
+
+	draw.clear_background(pass=&offs_pass,clear_color={.3,.3,.3,.6})
+	draw.start_pass(pass=&offs_pass,cam=&ctx.gs.cam)
+	{
+		// ui space example
+		draw.push_coord_space(get_pixl_space(500,500))
+
+		draw.draw_text({0, 0}, "this is a render texture and is only drawn one time.", z_layer=.ui, pivot=Pivot.center_center)
+		draw.draw_sprite({100, 100}, .player_still, col_override=Vec4{1,0,1,1}, z=-1)
+		draw.draw_sprite({-100, 100}, .player_still, col_override=Vec4{0,0,1,.4}, z=-1,)
+		draw.draw_sprite({-100, -100}, .player_still, col_override=Vec4{1,0,0,.4}, z=-11)
+		draw.draw_sprite({100, -100}, .player_still, col_override=Vec4{0,0,1,.4}, z=11,)
+	}
+	draw.end_pass(pass=&offs_pass)
 
 }
 
 app_frame :: proc() {
-
 	// right now we are just calling the game update, but in future this is where you'd do a big
 	// "UX" switch for startup splash, main menu, settings, in-game, etc
-
-	{
-		// ui space example
-		draw.push_coord_space(get_screen_space())
-
-		x, y := screen_pivot(.top_left)
-		x += 2
-		y -= 2
-		draw.draw_text({x, y}, "hello world.", z_layer=.ui, pivot=Pivot.top_left)
-	}
-
 	sound.play_continuously("event:/ambiance", "")
-
 	game_update()
+
 	game_draw()
 
 	volume :f32= 0.75
 	sound.update(get_player().pos, volume)
 }
 
-app_shutdown :: proc() {
-	// called on exit
-}
-
 game_update :: proc() {
+
+	draw.start_pass(pass=&bace_pass,cam=&ctx.gs.cam)//some things may need to know stuff about the bace pass
+
 	ctx.gs.scratch = {} // auto-zero scratch for each update
 	defer {
 		// update at the end
 		ctx.gs.game_time_elapsed += f64(ctx.delta_t)
 		ctx.gs.ticks += 1
 	}
-
+	
 	// this'll be using the last frame's camera position, but it's fine for most things
 	draw.push_coord_space(get_world_space())
 
+	
 	// setup world for first game tick
 	if ctx.gs.ticks == 0 {
 		player := entity_create(.player)
 		ctx.gs.player_handle = player.handle
 	}
 
+	
 	rebuild_scratch_helpers()
 	
 	// big :update time
@@ -208,10 +233,65 @@ game_update :: proc() {
 		log.info("schloop at", pos)
 		sound.play("event:/schloop", pos=pos)
 	}
-
-	utils.animate_to_target_v2(&ctx.gs.cam_pos, get_player().pos, ctx.delta_t, rate=10)
-
+	t_cam_pos:=ctx.gs.cam.pos.xy
+	utils.animate_to_target_v2(&t_cam_pos, get_player().pos, ctx.delta_t, rate=10)
+	ctx.gs.cam.pos.xy=t_cam_pos
 	// ... add whatever other systems you need here to make epic game
+}
+
+game_draw :: proc() {
+	draw.clear_background(pass=&bace_pass,clear_color = {.05,.1,.3,1})
+
+	// this is a exsample of doing a sepret draw_pass
+	{
+		draw.start_pass(pass=&bace_pass,cam=&ctx.gs.cam)
+		draw.push_coord_space(get_world_space())
+		draw.current_pass.ndc_to_world_xform = get_world_space_camera() * linalg.inverse(get_world_space_proj())
+		draw.draw_text({0, 250}, "hello world.",z=4, pivot=Pivot.bottom_center)
+		draw.end_pass(pass=&bace_pass)
+	}
+
+	draw.start_pass(pass=&bace_pass,cam=&ctx.gs.cam)
+
+	{
+		// ui space example
+		draw.push_coord_space(get_screen_space())
+		x, y := screen_pivot(.top_left)
+		x += 2
+		y -= 2
+		draw.draw_text({x,y}, "hello world.", z_layer=.ui, pivot=Pivot.top_left,)
+	}
+
+	// this is so we can get the current pixel in the shader in world space (VERYYY useful)
+	draw.current_pass.ndc_to_world_xform = get_world_space_camera() * linalg.inverse(get_world_space_proj())
+	draw.current_pass.bg_repeat_tex0_atlas_uv = draw.atlas_uv_from_sprite(.bg_repeat_tex0)
+
+	// background thing
+	{
+		// identity matrices, so we're in clip space
+		draw.push_coord_space({get_clip_space_proj(), get_clip_space_camera()})
+		// draw rect that covers the whole screen
+		draw.draw_rect(Rect{ -1, -1, 1, 1}, flags=.background_pixels,z_layer = .background) // we leave it in the hands of the shader
+	}
+
+
+	// world
+	{
+		draw.push_coord_space(get_world_space())
+
+		// draws the render texture										tex_index is for what image to draw frome this was set in app_init()
+		draw.draw_rect(Rect{ -100, -270, 100, -70},z_layer = .background,tex_index=2)
+
+		draw.draw_sprite({10, 10}, .player_still, col_override=Vec4{0,0,1,.4}, z=-1,)
+		draw.draw_sprite({-10, 10}, .player_still, col_override=Vec4{1,0,1,.4}, z=1,)
+		draw.draw_text({0, -50}, "sugon", pivot=.bottom_center, col={0,0,0,0.1})
+
+		for handle in get_all_ents() {
+			e := entity_from_handle(handle)
+			e.draw_proc(e^)
+		}
+	}
+	draw.end_pass(pass=&bace_pass)
 }
 
 rebuild_scratch_helpers :: proc() {
@@ -223,37 +303,6 @@ rebuild_scratch_helpers :: proc() {
 		append(&all_ents, e.handle)
 	}
 	ctx.gs.scratch.all_entities = all_ents[:]
-}
-
-game_draw :: proc() {
-
-	// this is so we can get the current pixel in the shader in world space (VERYYY useful)
-	draw.draw_frame.ndc_to_world_xform = get_world_space_camera() * linalg.inverse(get_world_space_proj())
-	draw.draw_frame.bg_repeat_tex0_atlas_uv = draw.atlas_uv_from_sprite(.bg_repeat_tex0)
-
-	// background thing
-	{
-		// identity matrices, so we're in clip space
-		draw.push_coord_space({proj=Matrix4(1), camera=Matrix4(1)})
-
-		// draw rect that covers the whole screen
-		draw.draw_rect(Rect{ -1, -1, 1, 1}, flags=.background_pixels) // we leave it in the hands of the shader
-	}
-
-	// world
-	{
-		draw.push_coord_space(get_world_space())
-		
-		draw.draw_sprite({10, 10}, .player_still, col_override=Vec4{1,0,0,0.4})
-		draw.draw_sprite({-10, 10}, .player_still)
-
-		draw.draw_text({0, -50}, "sugon", pivot=.bottom_center, col={0,0,0,0.1})
-
-		for handle in get_all_ents() {
-			e := entity_from_handle(handle)
-			e.draw_proc(e^)
-		}
-	}
 }
 
 // note, this needs to be in the game layer because it varies from game to game.
@@ -278,6 +327,7 @@ draw_sprite_entity :: proc(
 
 	pos: Vec2,
 	sprite: Sprite_Name,
+	z:f32=0,
 	pivot:=utils.Pivot.center_center,
 	flip_x:=false,
 	draw_offset:=Vec2{},
@@ -292,7 +342,6 @@ draw_sprite_entity :: proc(
 	crop_left:f32=0.0,
 	crop_bottom:f32=0.0,
 	crop_right:f32=0.0,
-	z_layer_queue:=-1,
 ) {
 
 	col_override := col_override
@@ -303,7 +352,24 @@ draw_sprite_entity :: proc(
 		col_override.a = max(col_override.a, entity.hit_flash.a)
 	}
 
-	draw.draw_sprite(pos, sprite, pivot, flip_x, draw_offset, xform, anim_index, col, col_override, z_layer, flags, params, crop_top, crop_left, crop_bottom, crop_right)
+	draw.draw_sprite(
+		pos=pos, 
+		sprite=sprite, 
+		z=z, pivot=pivot, 
+		flip_x=flip_x, 
+		draw_offset=draw_offset, 
+		xform=xform, 
+		anim_index=anim_index, 
+		col=col, 
+		col_override=col_override, 
+		z_layer=z_layer, 
+		flags=flags, 
+		params=params, 
+		crop_top=crop_top, 
+		crop_left=crop_left, 
+		crop_bottom=crop_bottom, 
+		crop_right=crop_right,
+	)
 }
 
 //

@@ -22,6 +22,8 @@ import "base:runtime"
 import "base:intrinsics"
 import "core:fmt"
 
+import user "user:bald-user"
+
 state: struct {
 	initialized: bool,
 	sound_ticks: u64,
@@ -54,9 +56,9 @@ init :: proc() {
 	
 	fmod_error_check(System_Initialize(system, 512, INIT_NORMAL, INIT_NORMAL, nil))
 	
-	fmod_error_check(System_LoadBankFile(system, "res/fmod/Master.bank", LOAD_BANK_NORMAL, &bank))
-	fmod_error_check(System_LoadBankFile(system, "res/fmod/Master.strings.bank", LOAD_BANK_NORMAL, &strings_bank))
-	
+	fmod_error_check(System_LoadBankFile(system, strings.clone_to_cstring(fmt.tprintf("%v/fmod/Master.bank",user.res_path),context.temp_allocator), LOAD_BANK_NORMAL, &bank))
+	fmod_error_check(System_LoadBankFile(system, strings.clone_to_cstring(fmt.tprintf("%v/fmod/Master.strings.bank",user.res_path),context.temp_allocator), LOAD_BANK_NORMAL, &strings_bank))
+
 	System_GetCoreSystem(system, &core_system);
 	
 	fmod_error_check(fcore.System_GetMasterChannelGroup(core_system, &master_ch_group));

@@ -11,3 +11,4 @@ template-starter.rbg
 /asset_workbench/fmod/.unsaved
 /asset_workbench/fmod/.cache
 /.vs
+.vscode

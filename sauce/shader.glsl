@@ -35,6 +35,9 @@ void main() {
 	} else if (tex_index == 1) {
 		// this is text, it's only got the single .r channel so we stuff it into the alpha
 		tex_col.a = texture(sampler2D(font_tex, default_sampler), uv).r;
+	}else if (tex_index == 2) {
+		// this is text, it's only got the single .r channel so we stuff it into the alpha
+		tex_col = texture(sampler2D(test, default_sampler), uv);
 	}
 	
 	col_out = tex_col;
@@ -52,6 +55,9 @@ void main() {
 	// add :pixel stuff here ^
 	
 	col_out *= color;
+	if (col_out.a == 0) {
+		discard;
+	}
 	
 	col_out.rgb = mix(col_out.rgb, color_override.rgb, color_override.a);
 	

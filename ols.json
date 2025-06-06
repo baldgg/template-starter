@@ -10,7 +10,7 @@
 		{ "name": "default", "checker_path": ["sauce"]}
 	],
 	"collections": [
-		{"name": "bald", "path": "C:\\rando\\dev\\template-starter\\sauce\\bald"},
-		{"name": "user", "path": "C:\\rando\\dev\\template-starter\\sauce\\bald-user"}
+		{"name": "user", "path": "C:/dev/odin/template-starter/sauce"},
+		{"name": "bald", "path": "C:/dev/odin/template-starter/sauce/bald"}
 	]
 }

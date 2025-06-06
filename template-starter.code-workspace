@@ -4,13 +4,13 @@
 			"path": "."
 		},
 		{
-			"path": "../odin/core"
+			"path": "C:/dev/compilers/Odin/core"
 		},
 		{
-			"path": "../odin/vendor"
+			"path": "C:/dev/compilers/Odin/vendor"
 		},
 		{
-			"path": "../odin/base"
+			"path": "C:/dev/compilers/Odin/base"
 		}
 	]
 }

@@ -102,8 +102,9 @@ core_app_init :: proc "c" () { // these sokol callbacks are c procs
 		window_h = height
 	}
 
-	draw.render_init()
-
+	
+	draw.init_render()
+	ctx.gs = _actual_game_state
 	app_init()
 }
 
@@ -148,9 +149,11 @@ core_app_frame :: proc "c" () {
 		sapp.toggle_fullscreen()
 	}
 
-	draw.core_render_frame_start()
+
 	app_frame()
-	draw.core_render_frame_end()
+
+
+
 
 	input.reset_input_state(input.state)
 	free_all(context.temp_allocator)

@@ -22,7 +22,7 @@ import "bald:utils"
 import "bald:utils/color"
 import "bald:utils/shape"
 
-import user "user:bald-user"
+import user"user:bald-user"
 
 import "core:log"
 import "core:fmt"
@@ -87,15 +87,29 @@ get_world_space :: proc() -> draw.Coord_Space {
 	return {proj=get_world_space_proj(), camera=get_world_space_camera()}
 }
 get_screen_space :: proc() -> draw.Coord_Space {
-	return {proj=get_screen_space_proj(), camera=Matrix4(1)}
+	return {proj=get_screen_space_proj(), camera=Matrix4(1)* utils.xform_translate(Vec3{0,0,100})}
 }
-
+get_pixl_space :: proc(w:f32,h:f32) -> draw.Coord_Space{
+	return {proj=get_pixl_space_proj(w,h), camera=Matrix4(1)* utils.xform_translate(Vec3{0,0,100})}
+}
 get_world_space_proj :: proc() -> Matrix4 {
-	return linalg.matrix_ortho3d_f32(f32(window_w) * -0.5, f32(window_w) * 0.5, f32(window_h) * -0.5, f32(window_h) * 0.5, -1, 1)
+	return linalg.matrix_ortho3d_f32(f32(window_w) * -0.5, f32(window_w) * 0.5, f32(window_h) * -0.5, f32(window_h) * 0.5, -200, 200)
 }
-get_world_space_camera :: proc() -> Matrix4 {
+get_pixl_space_proj :: proc(w:f32,h:f32) -> Matrix4{
+	return linalg.matrix_ortho3d_f32(f32(w) * -0.5, f32(w) * 0.5, f32(h) * 0.5, f32(h) * -0.5, -200, 200)
+}
+get_clip_space_proj ::proc() -> Matrix4{
+	return linalg.matrix_ortho3d_f32(-1, 1, -1, 1, -200, 200)
+}
+get_world_space_camera :: proc(call:^draw.Draw_Pass_Info=draw.current_pass) -> Matrix4 {
 	cam := Matrix4(1)
-	cam *= utils.xform_translate(ctx.gs.cam_pos)
+	cam *= utils.xform_translate(call.cam.pos)
+	cam *= utils.xform_scale(get_camera_zoom()*call.cam.zoom)
+	return cam
+}
+get_clip_space_camera :: proc() -> Matrix4 {
+	cam := Matrix4(1)
+	cam *= utils.xform_translate(Vec3{0,0,100})
 	cam *= utils.xform_scale(get_camera_zoom())
 	return cam
 }
@@ -112,7 +126,12 @@ get_screen_space_proj :: proc() -> Matrix4 {
 	// this centers things
 	offset := GAME_RES_WIDTH*0.5 - w*0.5
 
-	return linalg.matrix_ortho3d_f32(0+offset, w+offset, 0, h, -1, 1)
+	return linalg.matrix_ortho3d_f32(0+offset, w+offset, 0, h, -200, 200)
+}
+
+init_cam::proc(cam:^draw.Camera){
+	cam.zoom = 1
+	cam.pos = {0,0,100}
 }
 
 //
@@ -268,8 +287,8 @@ raw_button :: proc(rect: Rect) -> (hover, pressed: bool) {
 }
 
 mouse_pos_in_current_space :: proc() -> Vec2 {
-	proj := draw.draw_frame.coord_space.proj
-	cam := draw.draw_frame.coord_space.camera
+	proj := draw.current_pass.coord_space.proj
+	cam := draw.current_pass.coord_space.camera
 	if proj == {} || cam == {} {
 		log.error("not in a space, need to push_coord_space first")
 	}

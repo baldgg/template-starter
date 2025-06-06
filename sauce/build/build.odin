@@ -23,6 +23,9 @@ import "core:time"
 import logger "../bald/utils/logger"
 import utils "../bald/utils"
 
+GEN_SPRITE_NAMES :: #config(GEN_SPRITE_NAMES, true)
+res_path := #config(RES_PATH, "res")
+
 EXE_NAME :: "game"
 
 Target :: enum {
@@ -31,6 +34,8 @@ Target :: enum {
 }
 
 main :: proc() {
+
+
 	context.logger = logger.logger()
 	context.assertion_failure_proc = logger.assertion_failure_proc
 
@@ -74,7 +79,32 @@ main :: proc() {
 		fprintln(f, "	windows,")
 		fprintln(f, "	mac,")
 		fprintln(f, "}")
+
 		fprintln(f, tprintf("PLATFORM :: Platform.%v", target))
+	}
+
+	// gen the generated.odin
+	{
+		file := "sauce/bald-user/generated.odin"
+
+		f, err := os.open(file, os.O_WRONLY | os.O_CREATE | os.O_TRUNC)
+		if err != nil {
+			fmt.eprintln("Error:", err)
+		}
+		defer os.close(f)
+		
+		using fmt
+		fprintln(f, "//")
+		fprintln(f, "// MACHINE GENERATED via build.odin")
+		fprintln(f, "// do not edit by hand!")
+		fprintln(f, "//")
+		fprintln(f, "")
+		fprintln(f, "package core_user")
+		fprintln(f, "")
+		fprintln(f, "res_path ::",tprintf("\"%v\"",res_path))
+		if GEN_SPRITE_NAMES{
+			gen_sprite_names(f)
+		}
 	}
 	
 	// generate the shader
@@ -142,6 +172,8 @@ main :: proc() {
 
 	fmt.println("DONE in", time.diff(start_time, time.now()))
 }
+
+
 
 
 // value extraction example:
